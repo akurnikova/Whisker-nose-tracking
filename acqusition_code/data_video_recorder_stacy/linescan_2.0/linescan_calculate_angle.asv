@@ -1,0 +1,17 @@
+function [slope int] = linescan_calculate_angle(data,threshold,linelimit,numlines,collimits,meanbg)
+% calculate angle through detected pixels
+
+% calculate angle
+line_nobg = 255+double(data)-repmat(meanbg,numlines,1);
+linelimit(:,collimits(1):collimits(2)) = line_nobg(:,collimits(1):collimits(2));
+for iline=1:numlines
+    detect = mean(find(linelimit(iline,:)<threshold));
+    if ~isempty(detect)
+        y(iline) = detect;
+        x(ili
+end
+X = [ones(numlines,1) [1:numlines]'];
+a = X\detect;
+int = a(1);
+slope = a(2);
+    

@@ -1,0 +1,58 @@
+function [dt looptime] = linescan_run_preview(VID,AO,vidparams,aoparams,meanbg,collimits)
+
+global STOP;
+
+%m = memmapfile('display_data.dat','Format','double','Writable',true);
+% do not write each time - should be move to gui opeining code
+%fid = fopen('display_data.dat','w');
+%fwrite(fid,zeros(1,handles.vidparams.width+2),'double');
+%fclose(fid); 
+
+disp('click to start recording');
+k = waitforbuttonpress;
+
+if isfinite(vidparams.maxframes)
+    dt = zeros(1,vidparams.maxframes);
+    looptime = zeros(1,vidparams.maxframes);
+else
+    dt = NaN;
+    looptime = NaN;
+end
+
+start(VID);
+pause(0.1);
+scaledoutput = 10;
+evenframe = 0;
+snapshot = peekdata(VID,1); % take lines
+linelimit = 255*ones(1,size(snapshot,2)); % set lines to white
+figure(100);xlim([-5 10]);ylim([0 256]); hlineplot = gca; % plot once
+plot(hlineplot,aoparams.aovals,linelimit,'YDataSource','linelimit');xlim([-5 10]);ylim([0 256]);
+for i=1:vidparams.maxframes
+    tic;
+    evenframe = mod(i,2);
+    snapshot = peekdata(VID,1); % take lines
+    line = mean(snapshot); % average over lines
+    line_nobg = 255+line-meanbg;
+    linelimit(collimits(1):collimits(2)) = line_nobg(collimits(1):collimits(2));
+    detect = mean(find(linelimit<vidparams.threshold));
+    if isnan(detect);
+        scaledoutput = 10;
+    else
+        scaledoutput = (detect/vidparams.width)*aoparams.aoswing+aoparams.aooffset;
+    end
+    putsample(AO,[scaledoutput evenframe])
+    if isfinite(vidparams.maxframes); dt(i) = toc; end;
+    tic;
+    if mod(i,vidparams.displaynframes)==0
+        %m.Data(1:vidparams.width) = linelimit;
+        %m.Data(vidparams.width+1) = scaledoutput; 
+        %plot(hlineplot,aoparams.aovals,linelimit,'b',scaledoutput,0,'r.');xlim([-5 10]);ylim([0 256]);
+        refreshdata(hlineplot,'caller');
+        drawnow;
+        if STOP;STOP=0;break;end
+    end
+    finishloop = toc;
+    if isfinite(vidparams.maxframes); looptime(i) = dt(i) + finishloop; end
+    % break if stop condition met
+end
+stop(VID)
